@@ -29,7 +29,8 @@ jobs:
       run: |
         curl -fLOsS --user $COV_USER:$COVERITY_PASSPHRASE $COV_URL/downloadFile.htm?fn=$CSA.sh
         curl -fLOsS --user $COV_USER:$COVERITY_PASSPHRASE $COV_URL/downloadFile.htm?fn=license.dat
-        bash $CSA.sh --installation.dir=$RUNNER_TEMP/csa --license.cov.path=license.dat
+        ls -l
+        bash ./$CSA.sh --installation.dir=$RUNNER_TEMP/csa --license.cov.path=license.dat
           --license.agreement=agree --license.region=0 --license.type.choice=0
         rm -f $CSA.sh license.dat
 
