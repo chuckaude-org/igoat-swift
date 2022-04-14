@@ -1,0 +1,43 @@
+# Coverity on a GitHub-hosted ephemeral runner
+name: coverity-ephemeral
+
+on:
+  push:
+    branches: [ main, stage, 'releases/**' ]
+  pull_request:
+    branches: [ main, stage, 'releases/**' ]
+  workflow_dispatch:
+
+jobs:
+  coverity:
+    runs-on: macos-latest
+
+    env:
+      #COV_URL: ${{ secrets.COV_URL }}
+      COV_URL: https://coverity-aws.chuckaude.com
+      COV_USER: ${{ secrets.COV_USER }}
+      COVERITY_PASSPHRASE: ${{ secrets.COVERITY_PASSPHRASE }}
+      CSA: cov-analysis-macosx-2022.3.0
+      COV_STREAM: igoat-swift-master
+      BLDCMD: xcodebuild -UseModernBuildSystem=NO -workspace iGoat-Swift/iGoat-Swift.xcodeproj/project.xcworkspace -scheme iGoat-Swift build CODE_SIGNING_ALLOWED=NO
+      CHECKERS: --webapp-security
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Coverity Download
+      run: |
+        curl -fLsS --user $COV_USER:$COVERITY_PASSPHRASE $COV_URL/downloadFile.htm?fn=$CSA.sh -o $RUNNER_TEMP/$CSA.sh
+        curl -fLsS --user $COV_USER:$COVERITY_PASSPHRASE $COV_URL/downloadFile.htm?fn=license.dat -o $RUNNER_TEMP/license.dat
+        bash $RUNNER_TEMP/$CSA.sh -q --installation.dir=$RUNNER_TEMP/csa --license.cov.path=$RUNNER_TEMP/license.dat \
+          --license.agreement=agree --license.region=0 --license.type.choice=0
+
+    - name: Coverity Full Scan
+      if: ${{ github.event_name != 'pull_request' }}
+      run: |
+        export PATH=$PATH:$RUNNER_TEMP/csa/bin
+        coverity scan -o commit.connect.url=$COV_URL -o commit.connect.stream=$COV_STREAM -- $BLDCMD
+        #cov-build --dir idir --fs-capture-search $GITHUB_WORKSPACE $BLDCMD
+        #cov-analyze --dir idir --ticker-mode none --strip-path $GITHUB_WORKSPACE $CHECKERS
+        #cov-commit-defects --dir idir --ticker-mode none --url $COV_URL --stream $COVERITY_PROJECT-${GITHUB_REF##*/} --scm git \
+        #  --description $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID --target $RUNNER_OS --version $GITHUB_SHA
